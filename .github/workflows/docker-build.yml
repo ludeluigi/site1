@@ -23,3 +23,19 @@ jobs:
         run: |
           docker build -t ludeluigi/nginx-site1 .
           docker push ludeluigi/nginx-site1
+
+      - name: Deploy to EC2
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+        run: |
+          echo "$EC2_SSH_KEY" > private_key.pem
+          chmod 400 private_key.pem
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USERNAME@$EC2_HOST << 'EOF'
+            docker pull ludeluigi/nginx-site1
+            docker stop nginx-site1 || true
+            docker rm nginx-site1 || true
+            docker run -d --name nginx-site1 -p 80:80 ludeluigi/nginx-site1
+          EOF
+          rm private_key.pem
